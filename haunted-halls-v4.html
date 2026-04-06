@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>HAUNTED HALLS</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Creepster&family=Share+Tech+Mono&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;touch-action:none}
+canvas{display:block}
+#lobby{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;transition:opacity .8s}
+#lobby.hidden{opacity:0;pointer-events:none}
+#ltitle{font-family:'Creepster',cursive;font-size:clamp(2.5rem,8vw,5.5rem);color:#c00;text-shadow:0 0 30px #f00,0 0 60px #900;letter-spacing:.1em;margin-bottom:.15em;animation:flicker 3s infinite}
+#lsub{font-family:'Share Tech Mono',monospace;color:#555;font-size:clamp(.6rem,1.8vw,.85rem);letter-spacing:.35em;margin-bottom:2.5rem}
+#lpanel{background:rgba(20,0,0,.7);border:1px solid #400;padding:2rem 2.5rem;display:flex;flex-direction:column;gap:1.2rem;min-width:320px;max-width:90vw}
+#lpanel label{font-family:'Share Tech Mono',monospace;color:#666;font-size:.72rem;letter-spacing:.2em;display:block;margin-bottom:.3rem}
+.li{font-family:'Share Tech Mono',monospace;background:#0a0000;border:1px solid #500;color:#f88;padding:.6rem 1rem;font-size:.9rem;width:100%;outline:none;letter-spacing:.1em;transition:border-color .2s}
+.li:focus{border-color:#c00}
+.lb{font-family:'Creepster',cursive;font-size:1.3rem;background:transparent;border:2px solid #c00;color:#c00;padding:.6em 1.5em;cursor:pointer;letter-spacing:.2em;text-shadow:0 0 10px #f00;transition:all .3s;text-transform:uppercase;width:100%}
+.lb:hover{background:#c00;color:#000;box-shadow:0 0 30px #f00}
+.lb.sec{border-color:#444;color:#666;font-size:1rem}
+.lb.sec:hover{border-color:#888;color:#aaa;box-shadow:none;background:transparent}
+#rdivider{display:flex;align-items:center;gap:1rem;font-family:'Share Tech Mono',monospace;color:#333;font-size:.7rem}
+#rdivider::before,#rdivider::after{content:'';flex:1;height:1px;background:#300}
+#rdisplay{font-family:'Share Tech Mono',monospace;color:#f44;font-size:1.1rem;letter-spacing:.3em;text-align:center;padding:.5rem;border:1px dashed #500;background:rgba(50,0,0,.3);cursor:pointer;display:none}
+#lstatus{font-family:'Share Tech Mono',monospace;color:#555;font-size:.68rem;text-align:center;letter-spacing:.15em;min-height:1rem}
+#lstatus.ok{color:#4a9}#lstatus.err{color:#f44}#lstatus.warn{color:#fa0}
+
+/* ── MODE TABS ── */
+#modetabs{display:flex;gap:0;border:1px solid #400;overflow:hidden;margin-bottom:.2rem}
+.mtab{flex:1;font-family:'Share Tech Mono',monospace;font-size:.72rem;letter-spacing:.2em;padding:.6em 0;text-align:center;cursor:pointer;background:rgba(10,0,0,.6);color:#444;border:none;transition:all .25s}
+.mtab.active{background:rgba(80,0,0,.5);color:#f44;border-bottom:2px solid #c00}
+.mtab:hover:not(.active){color:#888;background:rgba(30,0,0,.5)}
+#solopanel{display:flex;flex-direction:column;gap:1.2rem}
+#mppanel{display:flex;flex-direction:column;gap:1.2rem}
+
+/* ── WAITING ROOM ── */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.95);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+#overlay.visible{display:flex}
+#otitle{font-family:'Creepster',cursive;font-size:clamp(2.5rem,8vw,5rem);color:#c00;text-shadow:0 0 30px #f00;letter-spacing:.1em;margin-bottom:.15em;animation:flicker 3s infinite}
+#osub{font-family:'Share Tech Mono',monospace;color:#666;font-size:clamp(.65rem,1.8vw,.9rem);letter-spacing:.3em;margin-bottom:.6rem}
+#oroom{font-family:'Share Tech Mono',monospace;color:#500;font-size:.75rem;letter-spacing:.2em;margin-bottom:1.5rem}
+#oroom span{color:#c44;cursor:pointer}
+#oroom span:hover{color:#f66}
+#waitpanel{background:rgba(15,0,0,.8);border:1px solid #400;padding:1.5rem 2rem;width:min(420px,90vw);display:flex;flex-direction:column;gap:1rem}
+#waitpanel h3{font-family:'Share Tech Mono',monospace;color:#500;font-size:.68rem;letter-spacing:.3em;text-align:center}
+#playerlist{display:flex;flex-direction:column;gap:.6rem;min-height:60px}
+.wplayer{display:flex;align-items:center;justify-content:space-between;padding:.5rem .8rem;background:rgba(30,0,0,.6);border:1px solid #300}
+.wplayer-info{display:flex;align-items:center;gap:.6rem;font-family:'Share Tech Mono',monospace;font-size:.8rem;color:#888}
+.wplayer-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.wplayer-badge{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.15em;padding:.2em .6em;border:1px solid}
+.badge-leader{color:#fa0;border-color:#a60;background:rgba(80,40,0,.4)}
+.badge-ready{color:#4a9;border-color:#295;background:rgba(0,40,20,.4)}
+.badge-waiting{color:#555;border-color:#333;background:rgba(10,10,10,.3)}
+#startbtn{font-family:'Creepster',cursive;font-size:clamp(1.1rem,3.5vw,1.6rem);background:transparent;border:2px solid #c00;color:#c00;padding:.7em 2em;cursor:pointer;letter-spacing:.2em;text-shadow:0 0 10px #f00;box-shadow:0 0 20px #c00 inset,0 0 20px #900;transition:all .3s;text-transform:uppercase;width:100%}
+#startbtn:hover:not(:disabled){background:#c00;color:#000}
+#startbtn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;text-shadow:none;border-color:#500;color:#500}
+#readybtn{font-family:'Creepster',cursive;font-size:clamp(1.1rem,3.5vw,1.6rem);background:transparent;border:2px solid #4a9;color:#4a9;padding:.7em 2em;cursor:pointer;letter-spacing:.2em;text-shadow:0 0 10px #0f6;transition:all .3s;text-transform:uppercase;width:100%}
+#readybtn.ready{background:#4a9;color:#000;box-shadow:0 0 20px #0f6}
+#readybtn:hover{background:#4a9;color:#000}
+#waitstatus{font-family:'Share Tech Mono',monospace;color:#444;font-size:.65rem;letter-spacing:.15em;text-align:center}
+#oinstr{font-family:'Share Tech Mono',monospace;color:#444;font-size:clamp(.55rem,1.3vw,.72rem);text-align:center;margin-top:.5rem;line-height:2;letter-spacing:.08em}
+
+/* ── HUD ── */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10;font-family:'Share Tech Mono',monospace}
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:24px;height:24px}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:rgba(255,255,255,.5)}
+#crosshair::before{width:2px;height:100%;left:50%;transform:translateX(-50%)}
+#crosshair::after{height:2px;width:100%;top:50%;transform:translateY(-50%)}
+#stambar{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);width:200px;height:8px;background:#222;border:1px solid #444;border-radius:4px;overflow:hidden}
+#stamfill{height:100%;width:100%;background:#4a9;transition:width .1s;box-shadow:0 0 8px #4a9}
+#sanity{position:absolute;top:20px;left:20px;color:#b44;font-size:.75rem;letter-spacing:.15em}
+#sanval{color:#f66;font-size:1.1rem}
+#obj{position:absolute;top:20px;right:20px;text-align:right;color:#888;font-size:.7rem;letter-spacing:.15em;line-height:1.8}
+#keysf{color:#fa0;font-size:1rem}
+#plist{position:absolute;top:65px;left:20px;font-size:.65rem;letter-spacing:.1em;line-height:2;color:#444}
+#plist .pe{display:flex;align-items:center;gap:.4rem}
+#plist .pd{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+#plist .dead{opacity:.3;text-decoration:line-through}
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:9;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.85) 100%)}
+#blood{position:fixed;inset:0;pointer-events:none;z-index:8;opacity:0;transition:opacity .5s}
+#msg{position:fixed;top:35%;left:50%;transform:translateX(-50%);font-family:'Creepster',cursive;font-size:clamp(1.5rem,5vw,3rem);color:#c00;text-shadow:0 0 20px #f00;opacity:0;pointer-events:none;z-index:20;transition:opacity .5s;text-align:center;white-space:nowrap}
+
+/* ── MAP ITEM ── */
+#mapoverlay{position:fixed;inset:0;z-index:40;pointer-events:none;opacity:0;transition:opacity .25s;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;}
+#mapoverlay.active{opacity:1;pointer-events:all;}
+#mapcanvas{border:1px solid #500;image-rendering:pixelated;}
+#mapclose{position:absolute;top:20px;right:20px;font-family:'Share Tech Mono',monospace;color:#666;font-size:.75rem;letter-spacing:.2em;background:rgba(0,0,0,.7);border:1px solid #400;padding:.4em 1em;cursor:pointer}
+#mapclose:hover{color:#c00;border-color:#c00}
+#maplabel{position:absolute;bottom:30px;font-family:'Share Tech Mono',monospace;color:#500;font-size:.65rem;letter-spacing:.2em}
+#mapprompt{position:fixed;bottom:190px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;color:#bbb;font-size:.72rem;letter-spacing:.2em;background:rgba(0,0,0,.82);padding:.4rem 1.1rem;border:1px solid #555;z-index:20;display:none;animation:pulse 2s infinite;white-space:nowrap}
+#mapbtn-mobile{position:fixed;bottom:240px;right:20px;font-family:'Creepster',cursive;font-size:1rem;background:rgba(0,0,0,.85);border:2px solid #660;color:#aa0;padding:.45em 1.2em;cursor:pointer;letter-spacing:.2em;z-index:21;display:none;touch-action:manipulation}
+
+/* ── MOBILE ── */
+#mobile-controls{position:fixed;bottom:0;left:0;right:0;height:220px;pointer-events:none;z-index:15;display:none}
+#jzone{position:absolute;left:20px;bottom:20px;width:140px;height:140px;pointer-events:all}
+#jbase{position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15)}
+#jknob{position:absolute;width:50px;height:50px;border-radius:50%;background:rgba(200,0,0,.6);border:2px solid rgba(255,0,0,.4);top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 0 15px rgba(255,0,0,.4)}
+#lzone{position:absolute;right:0;bottom:0;width:calc(100% - 180px);height:220px;pointer-events:all}
+.mbn{position:absolute;border-radius:50%;pointer-events:all;display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.05em;text-align:center;line-height:1.3;user-select:none;-webkit-user-select:none;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);color:rgba(255,255,255,.5)}
+#sprintbtn{right:20px;bottom:20px;width:70px;height:70px}
+#sprintbtn:active{background:rgba(200,0,0,.3)}
+#hideprompt{position:fixed;bottom:240px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;color:#bbb;font-size:.75rem;letter-spacing:.2em;background:rgba(0,0,0,.82);padding:.45rem 1.2rem;border:1px solid #555;z-index:20;display:none;animation:pulse 2s infinite;white-space:nowrap;text-align:center}
+#hidebtn-mobile{position:fixed;bottom:170px;left:50%;transform:translateX(-50%);font-family:'Creepster',cursive;font-size:1.2rem;background:rgba(0,0,0,.85);border:2px solid #a00;color:#c00;padding:.55em 2em;cursor:pointer;letter-spacing:.2em;z-index:21;display:none;text-shadow:0 0 8px #f00;animation:pulse 1.8s infinite;touch-action:manipulation}
+#occmsg{position:fixed;bottom:240px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;color:#f84;font-size:.72rem;letter-spacing:.18em;background:rgba(0,0,0,.88);padding:.4rem 1rem;border:1px solid #742;z-index:22;display:none;animation:pulse 1.5s infinite}
+#specnotice{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;color:#f44;font-size:.75rem;letter-spacing:.2em;background:rgba(0,0,0,.7);padding:.4rem 1rem;border:1px solid #500;z-index:20;display:none;animation:pulse 1.5s infinite}
+
+/* ── HIDE OVERLAY ── */
+#hideoverlay{position:fixed;inset:0;z-index:30;pointer-events:none;background:rgba(0,0,0,0);transition:background .6s;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#hideoverlay.active{background:rgba(0,0,0,.93);pointer-events:all}
+#hideui{opacity:0;transition:opacity .5s;display:flex;flex-direction:column;align-items:center;gap:1.2rem;width:100%;padding:0 1.5rem;box-sizing:border-box}
+#hideoverlay.active #hideui{opacity:1}
+#hidelabel{font-family:'Creepster',cursive;font-size:clamp(1.4rem,5vw,2.2rem);color:#444;letter-spacing:.25em;animation:breathe 2.5s infinite}
+#hideslats{width:clamp(140px,45vw,200px);height:clamp(160px,30vh,220px);position:relative;overflow:hidden;border:1px solid #2a1500;background:#080300}
+.slat{position:absolute;width:100%;height:15px;background:rgba(45,22,7,.92);border-bottom:2px solid rgba(18,9,2,.95)}
+#hidebtns{display:flex;gap:.8rem;flex-wrap:wrap;justify-content:center;width:100%;max-width:340px}
+.hbtn{font-family:'Share Tech Mono',monospace;font-size:clamp(.75rem,2.5vw,1rem);background:rgba(255,255,255,.05);border:1px solid #555;color:#888;padding:.7em 1.4em;cursor:pointer;letter-spacing:.15em;transition:all .2s;pointer-events:all;touch-action:manipulation;min-width:120px;min-height:48px;flex:1}
+.hbtn:hover,.hbtn:active{border-color:#aaa;color:#ddd;background:rgba(255,255,255,.1)}
+.hbtn.peeking{border-color:#fa0 !important;color:#fa0 !important;background:rgba(200,120,0,.15) !important}
+#peekoverlay{position:fixed;inset:0;z-index:31;pointer-events:none;opacity:0;transition:opacity .2s}
+#peekoverlay.active{opacity:1;pointer-events:all}
+#peekslit{position:absolute;inset:0}
+#peekslit::before{content:'';position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,1) 0%,rgba(0,0,0,.97) calc(50% - 18px),rgba(0,0,0,.04) calc(50% - 6px),rgba(0,0,0,0) 50%,rgba(0,0,0,.04) calc(50% + 6px),rgba(0,0,0,.97) calc(50% + 18px),rgba(0,0,0,1) 100%)}
+#peekslit::after{content:'';position:absolute;inset:0;z-index:3;background:linear-gradient(to right,rgba(22,11,3,.98) 0%,rgba(22,11,3,.9) 2.5%,transparent 7%,transparent 93%,rgba(22,11,3,.9) 97.5%,rgba(22,11,3,.98) 100%)}
+#peek-stop-btn{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;font-size:.8rem;background:rgba(0,0,0,.8);border:1px solid #fa0;color:#fa0;padding:.6em 2em;cursor:pointer;z-index:32;letter-spacing:.15em;touch-action:manipulation;display:none}
+#peekhint{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;color:rgba(255,255,255,.28);font-size:.62rem;letter-spacing:.2em;z-index:32;pointer-events:none;display:none}
+#peek-look-zone{position:fixed;inset:0;z-index:31;pointer-events:none;}
+#peek-look-zone.active{pointer-events:all;}
+#ncanvas{position:fixed;inset:0;opacity:.03;pointer-events:none;z-index:7}
+#resultscreen{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:all 1s}
+#resultscreen.show{opacity:1;pointer-events:all;background:rgba(0,0,0,.9)}
+#rtitle{font-family:'Creepster',cursive;font-size:clamp(2rem,8vw,5rem);margin-bottom:1rem;text-align:center}
+#rsub{font-family:'Share Tech Mono',monospace;color:#666;font-size:.85rem;letter-spacing:.2em;margin-bottom:2.5rem;text-align:center}
+#retrybtn{font-family:'Creepster',cursive;font-size:1.4rem;background:transparent;border:2px solid #666;color:#888;padding:.6em 2em;cursor:pointer;letter-spacing:.2em;transition:all .3s}
+#retrybtn:hover{border-color:#c00;color:#c00;box-shadow:0 0 20px #c00}
+#lobbybtn{font-family:'Share Tech Mono',monospace;font-size:.8rem;background:transparent;border:1px solid #333;color:#444;padding:.5em 1.5em;cursor:pointer;letter-spacing:.15em;transition:all .3s;margin-top:.5rem}
+#lobbybtn:hover{color:#888;border-color:#666}
+@keyframes flicker{0%,95%,100%{opacity:1}96%{opacity:.3}97%{opacity:1}98%{opacity:.5}99%{opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes breathe{0%,100%{opacity:.35}50%{opacity:.9}}
+
+/* ── SETTINGS PANEL ── */
+#settingsbtn{position:fixed;top:18px;right:18px;z-index:25;background:rgba(0,0,0,.7);border:1px solid #400;color:#555;font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:.18em;padding:.4em .9em;cursor:pointer;pointer-events:all;transition:all .2s}
+#settingsbtn:hover{color:#c00;border-color:#c00}
+#settingspanel{position:fixed;top:50px;right:18px;z-index:26;background:rgba(8,0,0,.96);border:1px solid #500;padding:1.2rem 1.4rem;display:none;flex-direction:column;gap:1rem;min-width:230px;pointer-events:all}
+#settingspanel.open{display:flex}
+#settingspanel h4{font-family:'Share Tech Mono',monospace;color:#500;font-size:.62rem;letter-spacing:.3em;text-align:center;border-bottom:1px solid #300;padding-bottom:.5rem;margin-bottom:.2rem}
+.sens-row{display:flex;flex-direction:column;gap:.35rem}
+.sens-label{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.18em;color:#666;display:flex;justify-content:space-between;align-items:center}
+.sens-label span{color:#f44;font-size:.8rem;min-width:2.2em;text-align:right}
+.sens-slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:#300;outline:none;border-radius:2px;cursor:pointer}
+.sens-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#c00;box-shadow:0 0 6px #f00;cursor:pointer}
+.sens-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#c00;box-shadow:0 0 6px #f00;cursor:pointer;border:none}
+.sens-divider{height:1px;background:#300;margin:.1rem 0}
+#settingspanel .close-settings{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:#444;background:none;border:1px solid #333;padding:.4em;cursor:pointer;letter-spacing:.1em;transition:all .2s;text-align:center}
+#settingspanel .close-settings:hover{color:#888;border-color:#666}
+</style>
+</head>
+<body>
+<canvas id="ncanvas"></canvas>
+
+<!-- LOBBY -->
+<div id="lobby">
+  <div id="ltitle">HAUNTED HALLS</div>
+  <div id="lsub">// SURVIVAL HORROR //</div>
+  <div id="lpanel">
+    <div><label>YOUR NAME</label><input class="li" id="pname" maxlength="16" placeholder="Enter name..." autocomplete="off"></div>
+    <!-- Mode Tabs -->
+    <div id="modetabs">
+      <button class="mtab active" onclick="switchMode('solo')" id="tab-solo">👤 SOLO</button>
+      <button class="mtab" onclick="switchMode('multi')" id="tab-multi">👥 MULTIPLAYER</button>
+    </div>
+    <!-- Solo Panel -->
+    <div id="solopanel">
+      <button class="lb" onclick="playSolo()" style="background:rgba(80,0,0,.2)">▶ ENTER THE DARK</button>
+      <div id="lstatus">solo — face the dark alone</div>
+    </div>
+    <!-- Multiplayer Panel -->
+    <div id="mppanel" style="display:none">
+      <button class="lb" onclick="createRoom()">CREATE NEW ROOM</button>
+      <div id="rdisplay" title="Click to copy">ROOM: <span id="rcode"></span> &nbsp;📋</div>
+      <div id="rdivider">OR JOIN</div>
+      <div><label>ROOM CODE</label><input class="li" id="jcode" maxlength="6" placeholder="Enter 6-char code..." autocomplete="off" style="text-transform:uppercase"></div>
+      <button class="lb sec" onclick="joinRoom()">JOIN ROOM</button>
+      <div id="lstatus2" style="font-family:'Share Tech Mono',monospace;color:#555;font-size:.68rem;text-align:center;letter-spacing:.15em;min-height:1rem">enter your name to begin</div>
+    </div>
+  </div>
+</div>
+
+<!-- WAITING ROOM -->
+<div id="overlay">
+  <div id="otitle">HAUNTED HALLS</div>
+  <div id="osub">// WAITING ROOM //</div>
+  <div id="oroom">ROOM: <span id="oroomcode" title="Click to copy" onclick="copyCode()"></span> 📋</div>
+  <div id="waitpanel">
+    <h3>— PLAYERS —</h3>
+    <div id="playerlist"></div>
+    <div id="waitstatus">waiting for players...</div>
+    <!-- Leader sees START (disabled until all ready) -->
+    <button id="startbtn" onclick="leaderStart()" style="display:none" disabled>ENTER THE DARK</button>
+    <!-- Non-leader sees READY toggle -->
+    <button id="readybtn" onclick="toggleReady()" style="display:none">READY UP</button>
+    <div id="oinstr">
+      PC: WASD move &nbsp;|&nbsp; Mouse look &nbsp;|&nbsp; SHIFT sprint &nbsp;|&nbsp; <b>E</b> hide &nbsp;|&nbsp; <b>hold F</b> peek &nbsp;|&nbsp; <b>M</b> map<br>
+      MOBILE: Joystick move &nbsp;|&nbsp; Right-drag look &nbsp;|&nbsp; SPRINT button<br><br>
+      🗝️ Collect 3 keys &nbsp;|&nbsp; Find EXIT &nbsp;|&nbsp; 🚪 Hide in wardrobes &nbsp;|&nbsp; 🗺️ Find the map item
+    </div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="vignette"></div>
+  <div id="blood"></div>
+  <div id="sanity">SANITY<br><span id="sanval">100</span></div>
+  <div id="obj">KEYS<br><span id="keysf">0 / 3</span></div>
+  <div id="plist"></div>
+  <div id="stambar"><div id="stamfill"></div></div>
+  <div id="msg"></div>
+</div>
+
+<!-- MAP OVERLAY -->
+<div id="mapoverlay">
+  <canvas id="mapcanvas" width="420" height="420"></canvas>
+  <button id="mapclose" onclick="closeMap()">✕ CLOSE (M)</button>
+  <div id="maplabel">🗺️ HAUNTED HALLS — MAP</div>
+</div>
+<div id="mapprompt">🗺️ PRESS M FOR MAP</div>
+<button id="mapbtn-mobile" onclick="openMap()">🗺️ MAP</button>
+
+<div id="specnotice">YOU DIED — SPECTATING...</div>
+<div id="hideprompt">🚪 HIDE IN WARDROBE</div>
+<button id="hidebtn-mobile">🚪 HIDE</button>
+<div id="occmsg">🚪 ALREADY OCCUPIED</div>
+
+<div id="hideoverlay">
+  <div id="hideui">
+    <div id="hidelabel">HIDING...</div>
+    <div id="hideslats"></div>
+    <div id="hidebtns">
+      <button class="hbtn" id="peekbtn">👁 PEEK</button>
+      <button class="hbtn" id="exitbtn">🚪 EXIT</button>
+    </div>
+  </div>
+</div>
+
+<div id="peekoverlay">
+  <div id="peekslit"></div>
+  <div id="peek-look-zone"></div>
+  <div id="peekhint">DRAG TO LOOK — TAP BUTTON TO STOP</div>
+  <button id="peek-stop-btn">■ STOP PEEKING</button>
+</div>
+
+<div id="mobile-controls">
+  <div id="jzone"><div id="jbase"></div><div id="jknob"></div></div>
+  <div id="lzone"></div>
+  <div class="mbn" id="sprintbtn">SPRINT</div>
+</div>
+
+<div id="resultscreen">
+  <div id="rtitle"></div>
+  <div id="rsub"></div>
+  <button id="retrybtn" onclick="retryGame()">PLAY AGAIN</button>
+  <button id="lobbybtn" onclick="backToLobby()">← LOBBY</button>
+</div>
+
+<!-- SETTINGS (in-game) -->
+<button id="settingsbtn" onclick="toggleSettings()" style="display:none">⚙ SENS</button>
+<div id="settingspanel">
+  <h4>⚙ SENSITIVITY</h4>
+  <div class="sens-row">
+    <div class="sens-label">🖱 PC MOUSE<span id="pcval">5</span></div>
+    <input class="sens-slider" id="pcslider" type="range" min="1" max="10" step="1" value="5" oninput="updateSens('pc',this.value)">
+  </div>
+  <div class="sens-divider"></div>
+  <div class="sens-row">
+    <div class="sens-label">👆 MOBILE TOUCH<span id="mobval">5</span></div>
+    <input class="sens-slider" id="mobslider" type="range" min="1" max="10" step="1" value="5" oninput="updateSens('mob',this.value)">
+  </div>
+  <button class="close-settings" onclick="toggleSettings()">✕ CLOSE</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onerror="alert('THREE.js gagal load. Cek koneksi internet lalu reload.')"></script>
+<script>
+// ═══════════════════════════════════
+// FIREBASE CONFIG
+// ═══════════════════════════════════
+const FB_URL='https://horror-game-cuy-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FB_AUTH='AIzaSyC1yV-aXPRLdYJVHBcqRT26JSDiIl92pc8';
+
+// ═══════════════════════════════════
+// MULTIPLAYER ENGINE
+// ═══════════════════════════════════
+class MP {
+  constructor(){
+    this.id='p'+Math.random().toString(36).slice(2,9);
+    this.name='GHOST';
+    this.color=0x00aaff;
+    this.roomId=null;
+    this.isLeader=false;
+    this.isReady=false;
+    this.peers={};          // id -> {name,color,x,y,z,yaw,sanity,dead,hiding,wIdx,ready,isLeader}
+    this.shared={keys:[]};
+    this._cbs={};
+    this._es=[];
+    this._seenEvents=new Set();
+    this._seenRoom=new Set();
+    this._pollT=null;
+  }
+
+  on(e,f){this._cbs[e]=f;}
+  _emit(e,d){if(this._cbs[e])this._cbs[e](d);}
+  _url(p){return `${FB_URL}/rooms/${this.roomId}/${p}.json?auth=${FB_AUTH}`;}
+
+  async _put(path,data){
+    try{await fetch(this._url(path),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){}
+  }
+  async _patch(path,data){
+    try{await fetch(this._url(path),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){}
+  }
+  async _post(path,data){
+    try{await fetch(this._url(path),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){}
+  }
+  async _del(path){
+    try{await fetch(this._url(path),{method:'DELETE'});}catch(e){}
+  }
+
+  create(){
+    this.roomId=Math.random().toString(36).slice(2,8).toUpperCase();
+    this.isLeader=true;
+    this.isReady=true; // leader is always "ready"
+    this._connect();
+    return this.roomId;
+  }
+
+  join(c){
+    this.roomId=c.toUpperCase();
+    this.isLeader=false;
+    this.isReady=false;
+    this._connect();
+    return this.roomId;
+  }
+
+  _connect(){
+    // Write self into room
+    this._put('players/'+this.id,{
+      name:this.name,color:this.color,
+      x:2,y:.9,z:2,yaw:0,sanity:100,
+      dead:false,hiding:false,wIdx:-1,
+      ready:this.isReady,isLeader:this.isLeader
+    });
+
+    // --- SSE: players ---
+    const esP=new EventSource(`${FB_URL}/rooms/${this.roomId}/players.json?auth=${FB_AUTH}`);
+    const handlePlayers=(all)=>{
+      if(!all||typeof all!=='object')return;
+      const ids=new Set(Object.keys(all).filter(k=>k!==this.id));
+      ids.forEach(id=>{
+        const d=all[id];
+        if(!d)return;
+        if(!this.peers[id]){
+          this.peers[id]={...d};
+          this._emit('join',{id,...d});
+        } else {
+          const prev={...this.peers[id]};
+          this.peers[id]={...this.peers[id],...d};
+          this._emit('move',{id,...this.peers[id]});
+          if(!!d.hiding!==!!prev.hiding)this._emit('hiding',{id,hiding:!!d.hiding,wIdx:d.wIdx??-1});
+          if(d.dead&&!prev.dead)this._emit('died',{id});
+          if(d.ready!==prev.ready||d.isLeader!==prev.isLeader)this._emit('readychange',{id,...this.peers[id]});
+        }
+      });
+      Object.keys(this.peers).forEach(id=>{
+        if(!ids.has(id)){this._emit('leave',{id});delete this.peers[id];}
+      });
+    };
+    esP.addEventListener('put',ev=>{
+      try{const {data}=JSON.parse(ev.data);handlePlayers(data||{});}catch(e){}
+    });
+    esP.addEventListener('patch',ev=>{
+      try{
+        const {data}=JSON.parse(ev.data);
+        if(!data)return;
+        Object.entries(data).forEach(([id,d])=>{
+          if(id===this.id)return;
+          if(!this.peers[id]){this.peers[id]={...d};this._emit('join',{id,...d});}
+          else{
+            const prev={...this.peers[id]};
+            this.peers[id]={...this.peers[id],...d};
+            this._emit('move',{id,...this.peers[id]});
+            if(d.hiding!==undefined&&!!d.hiding!==!!prev.hiding)this._emit('hiding',{id,hiding:!!d.hiding,wIdx:d.wIdx??-1});
+            if(d.dead&&!prev.dead)this._emit('died',{id});
+            if(d.ready!==undefined&&d.ready!==prev.ready)this._emit('readychange',{id,...this.peers[id]});
+          }
+        });
+      }catch(e){}
+    });
+    this._es.push(esP);
+
+    // --- SSE: events ---
+    const esE=new EventSource(`${FB_URL}/rooms/${this.roomId}/events.json?auth=${FB_AUTH}`);
+    const handleEvent=(k,d)=>{
+      if(!d||this._seenEvents.has(k))return;
+      this._seenEvents.add(k);
+      if(d.from===this.id)return;
+      if(d.t==='key'&&!this.shared.keys.includes(d.ki)){
+        this.shared.keys.push(d.ki);
+        this._emit('key',{by:d.from,ki:d.ki,total:this.shared.keys.length});
+      }
+      if(d.t==='over')this._emit('over',{won:d.won});
+      if(d.t==='start')this._emit('start',{});
+    };
+    esE.addEventListener('put',ev=>{
+      try{const {data}=JSON.parse(ev.data);if(data&&typeof data==='object')Object.entries(data).forEach(([k,d])=>handleEvent(k,d));}catch(e){}
+    });
+    esE.addEventListener('patch',ev=>{
+      try{const {data}=JSON.parse(ev.data);if(data&&typeof data==='object')Object.entries(data).forEach(([k,d])=>handleEvent(k,d));}catch(e){}
+    });
+    this._es.push(esE);
+
+    // --- SSE: state (shared keys + game start) ---
+    const esS=new EventSource(`${FB_URL}/rooms/${this.roomId}/state.json?auth=${FB_AUTH}`);
+    esS.addEventListener('put',ev=>{
+      try{
+        const {data:s}=JSON.parse(ev.data);
+        if(!s)return;
+        const p=this.shared.keys.length;
+        if(Array.isArray(s.keys))this.shared.keys=s.keys;
+        if(this.shared.keys.length>p)this._emit('sync',this.shared);
+        if(s.started&&!gameActive)this._emit('start',{});
+      }catch(e){}
+    });
+    this._es.push(esS);
+  }
+
+  pos(p){
+    if(!this.roomId)return;
+    this._patch('players/'+this.id,{
+      x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),
+      yaw:+p.yaw.toFixed(3),sanity:Math.round(p.sanity),
+      dead:!!p.dead,hiding:!!p.hiding,wIdx:p.wIdx??-1
+    });
+  }
+
+  setReady(r){
+    this.isReady=r;
+    if(!this.roomId)return;
+    this._patch('players/'+this.id,{ready:r});
+  }
+
+  event(t,extra={}){
+    if(!this.roomId)return;
+    this._post('events',{t,from:this.id,...extra});
+    if(t==='key'&&!this.shared.keys.includes(extra.ki)){
+      this.shared.keys.push(extra.ki);
+      this._patch('state',{keys:this.shared.keys});
+    }
+    if(t==='over')this._patch('state',{over:true,won:extra.won});
+    if(t==='start')this._patch('state',{started:true});
+  }
+
+  disconnect(){
+    this._es.forEach(es=>es.close());this._es=[];
+    if(this.roomId){this._del('players/'+this.id);this.roomId=null;}
+  }
+}
+const mp=new MP();
+
+// ═══════════════════════════════════
+// NOISE
+// ═══════════════════════════════════
+const nc=document.getElementById('ncanvas'),nctx=nc.getContext('2d');
+function drawNoise(){
+  nc.width=innerWidth;nc.height=innerHeight;
+  const id=nctx.createImageData(nc.width,nc.height);
+  for(let i=0;i<id.data.length;i+=4){const v=Math.random()*255|0;id.data[i]=id.data[i+1]=id.data[i+2]=v;id.data[i+3]=255;}
+  nctx.putImageData(id,0,0);
+}
+setInterval(drawNoise,80);
+
+// ═══════════════════════════════════
+// THREE.JS
+// ═══════════════════════════════════
+const renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.setClearColor(0x000000);
+document.body.insertBefore(renderer.domElement,document.body.firstChild);
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x000000,.09);
+const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,100);
+window.addEventListener('resize',()=>{
+  renderer.setSize(innerWidth,innerHeight);
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+});
+
+// ═══════════════════════════════════
+// MAP — EXPANDED 20x20
+// ═══════════════════════════════════
+const MAP=[
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+  [1,0,1,0,1,0,1,1,1,1,0,1,0,1,0,1,1,0,1,1],
+  [1,0,1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
+  [1,0,1,1,1,1,1,0,1,1,1,1,0,1,1,1,0,1,0,1],
+  [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,1,0,1],
+  [1,1,1,1,0,0,1,1,1,0,1,1,1,1,0,1,0,0,0,1],
+  [1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
+  [1,0,1,1,0,1,0,1,1,1,1,1,1,1,0,0,0,1,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1],
+  [1,1,1,0,1,1,1,1,0,1,1,0,0,1,0,1,0,1,1,1],
+  [1,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,1],
+  [1,0,1,1,1,0,1,1,1,1,0,1,1,1,0,1,1,1,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+  [1,1,0,1,1,0,1,1,0,1,1,0,1,0,1,1,0,1,0,1],
+  [1,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,1],
+  [1,0,1,1,1,1,0,1,0,1,1,0,1,1,1,0,1,1,0,1],
+  [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,1,0,1],
+  [1,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,0,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+const C=2, WH=2;
+const START={col:1,row:1}, EXIT_P={col:18,row:18}, MS={col:18,row:1};
+// Keys placed around the map
+const KEYS_XZ=[[3,1],[1,13],[10,17],[16,9]]; // 4 keys now
+// Map item spots
+const MAP_ITEM_POS={col:10,row:5};
+// Wardrobe cells
+const WD_CELLS=[
+  {col:2,row:1},{col:6,row:1},{col:9,row:1},{col:13,row:1},{col:17,row:1},
+  {col:2,row:3},{col:5,row:3},{col:9,row:3},{col:13,row:3},
+  {col:3,row:5},{col:5,row:5},{col:8,row:5},{col:11,row:5},{col:15,row:5},
+  {col:2,row:7},{col:6,row:7},{col:11,row:7},{col:14,row:7},{col:17,row:7},
+  {col:3,row:9},{col:6,row:9},{col:9,row:9},{col:15,row:9},
+  {col:1,row:11},{col:5,row:11},{col:9,row:11},{col:13,row:11},{col:17,row:11},
+  {col:3,row:13},{col:7,row:13},{col:11,row:13},{col:15,row:13},
+  {col:2,row:15},{col:6,row:15},{col:10,row:15},{col:14,row:15},{col:17,row:15},
+  {col:3,row:17},{col:7,row:17},{col:11,row:17},{col:15,row:17},
+];
+
+// ═══════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════
+let gameActive=false,gameOver=false,myDead=false;
+let isHiding=false,isPeeking=false;
+let keys_pressed={w:0,a:0,s:0,d:0,shift:0};
+let yaw=0,pitch=0,bobT=0,shakeT=0;
+let keysGot=0,sanity=100,stamina=100,isSprint=false;
+let monActive=false,monChasing=false,monPathT=0;
+let hasMap=false,mapOpen=false;
+
+// ── SENSITIVITY ──
+let pcSens=0.002;   // default PC mouse (scale: 1=0.0004, 10=0.004)
+let mobSens=0.005;  // default mobile touch (scale: 1=0.001, 10=0.01)
+
+function updateSens(type,val){
+  const v=parseInt(val);
+  if(type==='pc'){
+    pcSens=v*0.0004;
+    document.getElementById('pcval').textContent=v;
+  } else {
+    mobSens=v*0.001;
+    document.getElementById('mobval').textContent=v;
+  }
+}
+
+function toggleSettings(){
+  const p=document.getElementById('settingspanel');
+  const open=p.classList.toggle('open');
+  // Release pointer lock when opening settings on PC
+  if(open&&document.exitPointerLock)document.exitPointerLock();
+}
+
+function showSettingsBtn(show){
+  document.getElementById('settingsbtn').style.display=show?'block':'none';
+  if(!show){document.getElementById('settingspanel').classList.remove('open');}
+}
+const TOTAL_KEYS=4;
+const pPos=new THREE.Vector3(C,.9,C);
+const monPos=new THREE.Vector3(MS.col*C,.9,MS.row*C);
+const monTarget=new THREE.Vector3();
+let nearWard=null,curWard=null;
+let monGroup=null,mapItemMesh=null;
+
+const wallMeshes=[],keyMeshes=[],wardrobes=[],ghosts={};
+let exitMesh;
+
+// ═══════════════════════════════════
+// MATERIALS
+// ═══════════════════════════════════
+function lm(c,e=0){return new THREE.MeshLambertMaterial({color:c,emissive:e});}
+const mWall=lm(0x1a1a2e),mFloor=lm(0x0d0d15),mCeil=lm(0x0a0a12);
+const mKey=new THREE.MeshLambertMaterial({color:0xffaa00,emissive:0x553300});
+const mExit=new THREE.MeshLambertMaterial({color:0x00ff88,emissive:0x004422});
+const mMon=lm(0xff0000,0x440000),mMonH=lm(0xcc0000,0x330000);
+const mWB=lm(0x2a1500,0x0a0500),mWD=lm(0x1e0f00,0x050200),mWH=lm(0x8a6030,0x221000);
+const mMapItem=new THREE.MeshLambertMaterial({color:0x88aaff,emissive:0x223366});
+
+// ═══════════════════════════════════
+// BUILD SCENE
+// ═══════════════════════════════════
+function buildMaze(){
+  const gW=new THREE.BoxGeometry(C,WH,C);
+  const gF=new THREE.PlaneGeometry(C,C);
+  for(let r=0;r<MAP.length;r++) for(let c=0;c<MAP[r].length;c++){
+    const x=c*C,z=r*C;
+    const fl=new THREE.Mesh(gF,mFloor);fl.rotation.x=-Math.PI/2;fl.position.set(x,0,z);scene.add(fl);
+    const ce=new THREE.Mesh(gF,mCeil);ce.rotation.x=Math.PI/2;ce.position.set(x,WH,z);scene.add(ce);
+    if(MAP[r][c]===1){const w=new THREE.Mesh(gW,mWall.clone());w.position.set(x,WH/2,z);scene.add(w);wallMeshes.push(w);}
+  }
+  // Keys
+  KEYS_XZ.forEach(([c,r],i)=>{
+    const km=new THREE.Mesh(new THREE.BoxGeometry(.25,.4,.08),mKey.clone());
+    km.position.set(c*C,.5,r*C);km.userData={collected:false,i};scene.add(km);keyMeshes.push(km);
+    const kl=new THREE.PointLight(0xffaa00,1.5,3);kl.position.copy(km.position);scene.add(kl);km.userData.light=kl;
+  });
+  // Exit
+  exitMesh=new THREE.Mesh(new THREE.BoxGeometry(.3,1.5,.3),mExit);
+  exitMesh.position.set(EXIT_P.col*C,.75,EXIT_P.row*C);scene.add(exitMesh);
+  const el=new THREE.PointLight(0x00ff88,2,5);el.position.copy(exitMesh.position);scene.add(el);
+  // Map item
+  const mc=MAP_ITEM_POS.col,mr=MAP_ITEM_POS.row;
+  mapItemMesh=new THREE.Mesh(new THREE.BoxGeometry(.35,.35,.05),mMapItem);
+  mapItemMesh.position.set(mc*C,.55,mr*C);mapItemMesh.userData={collected:false};scene.add(mapItemMesh);
+  const ml=new THREE.PointLight(0x88aaff,1.8,3.5);ml.position.copy(mapItemMesh.position);scene.add(ml);mapItemMesh.userData.light=ml;
+}
+
+function buildLights(){
+  scene.add(new THREE.AmbientLight(0x111122,.35));
+  const fl=new THREE.SpotLight(0xffffee,2.2,14,Math.PI/6,.4,1.5);
+  fl.target.position.set(0,0,-1);camera.add(fl);camera.add(fl.target);scene.add(camera);
+  // Scattered room lights over the larger map
+  [[4,4],[8,8],[14,6],[6,14],[12,2],[2,12],[16,14],[10,10],[4,16],[16,4],[14,14],[8,18]].forEach(([c,r])=>{
+    if(MAP[r]&&MAP[r][c]===0){const l=new THREE.PointLight(0x330011,1.1,6);l.position.set(c*C,WH-.3,r*C);scene.add(l);}
+  });
+}
+
+function buildWardrobes(){
+  wardrobes.length=0;
+  WD_CELLS.forEach(({col,row})=>{
+    if(!MAP[row]||MAP[row][col]!==0)return;
+    let f=null;
+    if(MAP[row-1]&&MAP[row-1][col]===1)f='N';
+    else if(MAP[row+1]&&MAP[row+1][col]===1)f='S';
+    else if(MAP[row][col-1]===1)f='W';
+    else if(MAP[row][col+1]===1)f='E';
+    if(!f)return;
+    const g=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.BoxGeometry(.9,1.6,.45),mWB);body.position.y=.8;g.add(body);
+    [-0.22,0.22].forEach(dx=>{
+      const d=new THREE.Mesh(new THREE.BoxGeometry(.42,1.5,.06),mWD);d.position.set(dx,.8,.255);g.add(d);
+      const h=new THREE.Mesh(new THREE.BoxGeometry(.04,.12,.04),mWH);h.position.set(dx>0?dx-.13:dx+.13,.82,.29);g.add(h);
+    });
+    const gl=new THREE.PointLight(0x331a00,.4,1.8);gl.position.set(0,1.2,0);g.add(gl);
+    const hc=C/2,hd=.225;
+    let wx=col*C,wz=row*C,ry=0;
+    if(f==='N'){wz=(row-1)*C+hc+hd;ry=0;}
+    else if(f==='S'){wz=(row+1)*C-hc-hd;ry=Math.PI;}
+    else if(f==='W'){wx=(col-1)*C+hc+hd;ry=Math.PI/2;}
+    else{wx=(col+1)*C-hc-hd;ry=-Math.PI/2;}
+    g.position.set(wx,0,wz);g.rotation.y=ry;scene.add(g);
+    let ipx=wx,ipz=wz;
+    if(f==='N')ipz+=.9;else if(f==='S')ipz-=.9;else if(f==='W')ipx+=.9;else ipx-=.9;
+    wardrobes.push({mesh:g,ip:new THREE.Vector3(ipx,.9,ipz),occupiedBy:null});
+  });
+}
+
+// ── MONSTER (improved — actually chases & kills) ──
+function buildMonster(){
+  monGroup=new THREE.Group();
+  // Body
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.7,1.0,.45),mMon);body.position.y=.5;monGroup.add(body);
+  // Head
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.55,.55,.55),mMonH);head.position.y=1.2;monGroup.add(head);
+  // Eyes (white glowing)
+  const em=new THREE.MeshLambertMaterial({color:0xffffff,emissive:0xffffff});
+  [-0.13,0.13].forEach(x=>{const e=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,.12),em);e.position.set(x,1.23,-.29);monGroup.add(e);});
+  // Arms
+  [-0.50,0.50].forEach(x=>{const a=new THREE.Mesh(new THREE.BoxGeometry(.2,.7,.2),mMon);a.position.set(x,.5,0);monGroup.add(a);});
+  // Legs
+  [-0.2,0.2].forEach(x=>{const l=new THREE.Mesh(new THREE.BoxGeometry(.24,.55,.24),mMonH);l.position.set(x,-.28,0);monGroup.add(l);});
+  // Red light glow
+  const ml=new THREE.PointLight(0xff0000,2.5,6);ml.position.set(0,1.2,0);monGroup.add(ml);
+  monGroup.position.copy(monPos);
+  scene.add(monGroup);
+}
+
+function buildSlats(){
+  const c=document.getElementById('hideslats');c.innerHTML='';
+  for(let i=0;i<13;i++){
+    const s=document.createElement('div');s.className='slat';
+    s.style.top=(i*17)+'px';s.style.opacity=(.5+Math.random()*.45).toString();
+    c.appendChild(s);
+  }
+}
+
+// ═══════════════════════════════════
+// GHOST PLAYERS
+// ═══════════════════════════════════
+function makeTag(name,color){
+  const cv=document.createElement('canvas');cv.width=256;cv.height=64;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='rgba(0,0,0,.65)';ctx.beginPath();ctx.roundRect(4,10,248,44,8);ctx.fill();
+  ctx.fillStyle='#'+color.toString(16).padStart(6,'0');ctx.beginPath();ctx.arc(26,32,7,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='bold 20px monospace';ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText(name.toUpperCase().slice(0,13),40,32);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthTest:false}));
+  sp.scale.set(1.3,.32,1);sp.position.y=1.65;return sp;
+}
+function getGhost(id,d){
+  if(ghosts[id])return ghosts[id];
+  const g=new THREE.Group();
+  const col=d.color||0x00aaff;
+  const m=new THREE.MeshLambertMaterial({color:col,emissive:new THREE.Color(col).multiplyScalar(.3),transparent:true,opacity:.85});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.5,.7,.35),m);body.position.y=.35;g.add(body);
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.4,.4,.4),m);head.position.y=.95;g.add(head);
+  const gl=new THREE.PointLight(col,.7,2.5);gl.position.y=.9;g.add(gl);
+  const tag=makeTag(d.name||'???',col);g.add(tag);g.userData.tag=tag;
+  scene.add(g);ghosts[id]=g;return g;
+}
+function updateGhost(id,d){
+  const g=getGhost(id,d);
+  g.position.set(d.x,d.y-.9,d.z);g.rotation.y=(d.yaw||0)+Math.PI;
+  const a=d.dead?.12:.85;
+  g.children.forEach(c=>{if(c.material)c.material.opacity=a;});
+  if(g.userData.tag)g.userData.tag.visible=!d.dead;
+  g.visible=!d.hiding;
+}
+function removeGhost(id){if(ghosts[id]){scene.remove(ghosts[id]);delete ghosts[id];}}
+
+// ═══════════════════════════════════
+// COLLISION
+// ═══════════════════════════════════
+function isWall(x,z){
+  const c=Math.round(x/C),r=Math.round(z/C);
+  if(r<0||r>=MAP.length||c<0||c>=MAP[0].length)return true;
+  return MAP[r][c]===1;
+}
+function mv(pos,dx,dz){
+  const m=.4,nx=pos.x+dx,nz=pos.z+dz;
+  if(!isWall(nx,pos.z)&&!isWall(nx+m,pos.z)&&!isWall(nx-m,pos.z)&&!isWall(nx,pos.z+m)&&!isWall(nx,pos.z-m))pos.x=nx;
+  if(!isWall(pos.x,nz)&&!isWall(pos.x+m,nz)&&!isWall(pos.x-m,nz)&&!isWall(pos.x,nz+m)&&!isWall(pos.x,nz-m))pos.z=nz;
+}
+
+// ═══════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════
+let actx;
+function ac(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
+function tone(f,t='sine',dur=.3,vol=.1,delay=0){
+  try{
+    const ctx=ac(),o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);o.type=t;o.frequency.value=f;
+    g.gain.setValueAtTime(0,ctx.currentTime+delay);
+    g.gain.linearRampToValueAtTime(vol,ctx.currentTime+delay+.02);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+delay+dur);
+    o.start(ctx.currentTime+delay);o.stop(ctx.currentTime+delay+dur+.1);
+  }catch(e){}
+}
+function sKey(){tone(880,'sine',.15,.2);tone(1320,'sine',.15,.15,.1);}
+function sDie(){for(let i=0;i<5;i++)tone(200+Math.random()*300,'sawtooth',.4,.3,i*.08);}
+function sWin(){[523,659,784,1047].forEach((f,i)=>tone(f,'sine',.4,.2,i*.15));}
+function sHb(v=.15){tone(80,'sine',.12,v);tone(70,'sine',.08,v*.7,.15);}
+function sMap(){tone(440,'sine',.1,.15);tone(660,'sine',.15,.12,.08);}
+let hbT=0;
+
+// ═══════════════════════════════════
+// INPUT
+// ═══════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.key==='w'||e.key==='W'||e.key==='ArrowUp')keys_pressed.w=1;
+  if(e.key==='s'||e.key==='S'||e.key==='ArrowDown')keys_pressed.s=1;
+  if(e.key==='a'||e.key==='A'||e.key==='ArrowLeft')keys_pressed.a=1;
+  if(e.key==='d'||e.key==='D'||e.key==='ArrowRight')keys_pressed.d=1;
+  if(e.key==='Shift')keys_pressed.shift=1;
+  if((e.key==='e'||e.key==='E')&&gameActive&&!isPeeking&&!mapOpen)toggleHide();
+  if((e.key==='f'||e.key==='F')&&gameActive&&isHiding)startPeek();
+  if((e.key==='m'||e.key==='M')&&gameActive&&!isHiding){
+    if(hasMap){if(mapOpen)closeMap();else openMap();}
+    else showMsg('FIND THE MAP ITEM FIRST','#888',1800);
+  }
+});
+document.addEventListener('keyup',e=>{
+  if(e.key==='w'||e.key==='W'||e.key==='ArrowUp')keys_pressed.w=0;
+  if(e.key==='s'||e.key==='S'||e.key==='ArrowDown')keys_pressed.s=0;
+  if(e.key==='a'||e.key==='A'||e.key==='ArrowLeft')keys_pressed.a=0;
+  if(e.key==='d'||e.key==='D'||e.key==='ArrowRight')keys_pressed.d=0;
+  if(e.key==='Shift')keys_pressed.shift=0;
+  if((e.key==='f'||e.key==='F')&&isPeeking)stopPeek();
+});
+let pLocked=false;
+document.addEventListener('click',e=>{
+  // Close settings if clicking outside
+  const sp=document.getElementById('settingspanel');
+  const sb=document.getElementById('settingsbtn');
+  if(sp.classList.contains('open')&&!sp.contains(e.target)&&e.target!==sb){
+    sp.classList.remove('open');
+  }
+  if(gameActive&&!pLocked&&!isHiding&&!mapOpen&&!sp.classList.contains('open'))renderer.domElement.requestPointerLock();
+});
+document.addEventListener('pointerlockchange',()=>{pLocked=document.pointerLockElement===renderer.domElement;});
+document.addEventListener('mousemove',e=>{
+  if((!pLocked&&!isPeeking)||!gameActive||mapOpen)return;
+  yaw-=e.movementX*pcSens;pitch-=e.movementY*pcSens;pitch=Math.max(-.4,Math.min(.4,pitch));
+});
+
+// Mobile
+const jz=document.getElementById('jzone'),jk=document.getElementById('jknob'),lz=document.getElementById('lzone');
+let jId=null,jDx=0,jDz=0,jA=false,lId=null,lx=0,ly=0;
+const JM=40;
+jz.addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];jId=t.identifier;jA=true;},{passive:false});
+lz.addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];lId=t.identifier;lx=t.clientX;ly=t.clientY;},{passive:false});
+document.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===jId&&jA){
+      const r=jz.getBoundingClientRect();let dx=t.clientX-(r.left+r.width/2),dy=t.clientY-(r.top+r.height/2);
+      const d=Math.sqrt(dx*dx+dy*dy);if(d>JM){dx=dx/d*JM;dy=dy/d*JM;}
+      jk.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;jDx=dx/JM;jDz=dy/JM;
+    }
+    if(t.identifier===lId&&!isHiding&&!mapOpen){
+      yaw-=(t.clientX-lx)*mobSens;pitch-=(t.clientY-ly)*mobSens;pitch=Math.max(-.4,Math.min(.4,pitch));
+      lx=t.clientX;ly=t.clientY;
+    }
+  }
+},{passive:false});
+document.addEventListener('touchend',e=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===jId){jA=false;jId=null;jDx=0;jDz=0;jk.style.transform='translate(-50%,-50%)';}
+    if(t.identifier===lId)lId=null;
+  }
+});
+const sb=document.getElementById('sprintbtn');
+sb.addEventListener('touchstart',e=>{e.preventDefault();keys_pressed.shift=1;},{passive:false});
+sb.addEventListener('touchend',e=>{e.preventDefault();keys_pressed.shift=0;},{passive:false});
+function isMob(){return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||innerWidth<800;}
+
+// ═══════════════════════════════════
+// HUD
+// ═══════════════════════════════════
+const sanEl=document.getElementById('sanval'),keysEl=document.getElementById('keysf');
+const stEl=document.getElementById('stamfill'),bloodEl=document.getElementById('blood');
+const msgEl=document.getElementById('msg'),plEl=document.getElementById('plist');
+let msgT;
+function showMsg(t,c='#c00',d=2000){
+  msgEl.textContent=t;msgEl.style.color=c;msgEl.style.opacity='1';
+  clearTimeout(msgT);msgT=setTimeout(()=>msgEl.style.opacity='0',d);
+}
+function updatePL(){
+  const mc='#'+mp.color.toString(16).padStart(6,'0');
+  const ms=isHiding?' 🚪':myDead?' ☠':'';
+  let h=`<div class="pe"><div class="pd" style="background:${mc}"></div><span>${mp.name}(you)${ms}</span></div>`;
+  for(const[id,p]of Object.entries(mp.peers)){
+    const c='#'+((p.color||0x00aaff).toString(16).padStart(6,'0'));
+    const s=p.hiding?' 🚪':p.dead?' ☠':'';
+    h+=`<div class="pe ${p.dead?'dead':''}"><div class="pd" style="background:${c}"></div><span>${p.name||'???'}${s}</span></div>`;
+  }
+  plEl.innerHTML=h;
+}
+
+// ═══════════════════════════════════
+// MAP ITEM & MINIMAP
+// ═══════════════════════════════════
+function openMap(){
+  if(!hasMap||mapOpen)return;
+  mapOpen=true;
+  if(document.exitPointerLock)document.exitPointerLock();
+  document.getElementById('mapoverlay').classList.add('active');
+  drawMap();
+}
+function closeMap(){
+  if(!mapOpen)return;
+  mapOpen=false;
+  document.getElementById('mapoverlay').classList.remove('active');
+  if(gameActive&&!isHiding)renderer.domElement.requestPointerLock();
+}
+function drawMap(){
+  const canvas=document.getElementById('mapcanvas');
+  const rows=MAP.length,cols=MAP[0].length;
+  const tileW=Math.floor(canvas.width/cols);
+  const tileH=Math.floor(canvas.height/rows);
+  canvas.width=cols*tileW;canvas.height=rows*tileH;
+  const ctx=canvas.getContext('2d');
+  // Draw tiles
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    ctx.fillStyle=MAP[r][c]===1?'#1a1a2e':'#0d0d1a';
+    ctx.fillRect(c*tileW,r*tileH,tileW,tileH);
+    if(MAP[r][c]===0){ctx.strokeStyle='#111';ctx.strokeRect(c*tileW,r*tileH,tileW,tileH);}
+  }
+  // Wardrobes
+  wardrobes.forEach(w=>{
+    const wc=Math.round(w.ip.x/C),wr=Math.round(w.ip.z/C);
+    ctx.fillStyle='#4a2800';ctx.fillRect(wc*tileW+1,wr*tileH+1,tileW-2,tileH-2);
+  });
+  // Keys
+  keyMeshes.forEach((k,i)=>{
+    const kc=Math.round(k.position.x/C),kr=Math.round(k.position.z/C);
+    ctx.fillStyle=k.userData.collected?'#333':'#ffaa00';
+    ctx.beginPath();ctx.arc(kc*tileW+tileW/2,kr*tileH+tileH/2,tileW/2-.5,0,Math.PI*2);ctx.fill();
+  });
+  // Exit
+  ctx.fillStyle='#00ff88';
+  ctx.fillRect(EXIT_P.col*tileW,EXIT_P.row*tileH,tileW,tileH);
+  // Monster
+  if(monActive){
+    const mc=Math.round(monPos.x/C),mr=Math.round(monPos.z/C);
+    ctx.fillStyle='#ff0000';
+    ctx.beginPath();ctx.arc(mc*tileW+tileW/2,mr*tileH+tileH/2,tileW/2,0,Math.PI*2);ctx.fill();
+  }
+  // Other players
+  Object.values(mp.peers).forEach(p=>{
+    if(p.dead)return;
+    const pc=Math.round(p.x/C),pr=Math.round(p.z/C);
+    ctx.fillStyle='#'+((p.color||0x00aaff).toString(16).padStart(6,'0'));
+    ctx.beginPath();ctx.arc(pc*tileW+tileW/2,pr*tileH+tileH/2,tileW/2-.5,0,Math.PI*2);ctx.fill();
+  });
+  // Player self
+  const pc2=Math.round(pPos.x/C),pr2=Math.round(pPos.z/C);
+  ctx.fillStyle='#ffffff';
+  ctx.beginPath();ctx.arc(pc2*tileW+tileW/2,pr2*tileH+tileH/2,tileW/2-.5,0,Math.PI*2);ctx.fill();
+  // Direction indicator
+  ctx.save();
+  ctx.translate(pc2*tileW+tileW/2,pr2*tileH+tileH/2);
+  ctx.rotate(-yaw);
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(0,-tileW*.8);ctx.lineTo(tileW*.4,tileW*.4);ctx.lineTo(-tileW*.4,tileW*.4);ctx.closePath();ctx.fill();
+  ctx.restore();
+}
+
+// ═══════════════════════════════════
+// HIDING
+// ═══════════════════════════════════
+function enterHide(){
+  if(isHiding||myDead||gameOver||!nearWard)return;
+  if(nearWard.occupiedBy&&nearWard.occupiedBy!==mp.id){
+    const n=mp.peers[nearWard.occupiedBy]?.name||'SOMEONE';
+    const el=document.getElementById('occmsg');
+    el.textContent='🚪 '+n.toUpperCase()+' IS IN THERE';el.style.display='block';
+    setTimeout(()=>el.style.display='none',2200);return;
+  }
+  isHiding=true;nearWard.occupiedBy=mp.id;curWard=nearWard;
+  pPos.copy(nearWard.ip);
+  document.getElementById('hideoverlay').classList.add('active');
+  document.getElementById('hideprompt').style.display='none';
+  document.getElementById('hidebtn-mobile').style.display='none';
+  document.getElementById('mobile-controls').style.display='none';
+  if(document.exitPointerLock)document.exitPointerLock();
+  monChasing=false;
+  mp.pos({x:pPos.x,y:pPos.y,z:pPos.z,yaw,sanity,dead:myDead,hiding:true,wIdx:wardrobes.indexOf(nearWard)});
+  tone(58,'sine',.35,.07);showMsg('HOLD STILL...','#444',2500);updatePL();
+}
+function exitHide(){
+  if(!isHiding)return;
+  if(isPeeking)stopPeek();
+  isHiding=false;
+  if(curWard&&curWard.occupiedBy===mp.id)curWard.occupiedBy=null;
+  curWard=null;
+  document.getElementById('hideoverlay').classList.remove('active');
+  mp.pos({x:pPos.x,y:pPos.y,z:pPos.z,yaw,sanity,dead:myDead,hiding:false,wIdx:-1});
+  if(isMob())document.getElementById('mobile-controls').style.display='block';
+  else renderer.domElement.requestPointerLock();
+  updatePL();
+}
+function toggleHide(){if(isHiding)exitHide();else if(nearWard)enterHide();}
+
+function fastTap(el,fn){
+  let _b=false;
+  el.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();_b=true;fn(e);},{passive:false});
+  el.addEventListener('click',e=>{if(_b){_b=false;return;}fn(e);});
+}
+fastTap(document.getElementById('hidebtn-mobile'),()=>{if(nearWard&&!isHiding)enterHide();});
+fastTap(document.getElementById('exitbtn'),()=>exitHide());
+
+const peekbtnEl=document.getElementById('peekbtn');
+peekbtnEl.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();startPeek();},{passive:false});
+peekbtnEl.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();stopPeek();},{passive:false});
+peekbtnEl.addEventListener('mousedown',()=>startPeek());
+peekbtnEl.addEventListener('mouseup',()=>stopPeek());
+peekbtnEl.addEventListener('mouseleave',()=>{if(isPeeking)stopPeek();});
+fastTap(document.getElementById('peek-stop-btn'),()=>stopPeek());
+
+let pkId=null,pkLx=0,pkLy=0;
+function startPeek(){
+  if(!isHiding||isPeeking)return;
+  isPeeking=true;
+  document.getElementById('hideoverlay').classList.remove('active');
+  document.getElementById('peekoverlay').classList.add('active');
+  document.getElementById('peekbtn').classList.add('peeking');
+  document.getElementById('peek-look-zone').classList.add('active');
+  if(isMob()){
+    document.getElementById('peekhint').style.display='block';
+    document.getElementById('peek-stop-btn').style.display='block';
+  } else renderer.domElement.requestPointerLock();
+}
+function stopPeek(){
+  if(!isPeeking)return;isPeeking=false;pkId=null;
+  document.getElementById('peekoverlay').classList.remove('active');
+  document.getElementById('peekbtn').classList.remove('peeking');
+  document.getElementById('peek-look-zone').classList.remove('active');
+  document.getElementById('peekhint').style.display='none';
+  document.getElementById('peek-stop-btn').style.display='none';
+  if(isHiding){document.getElementById('hideoverlay').classList.add('active');if(document.exitPointerLock)document.exitPointerLock();}
+}
+const plz=document.getElementById('peek-look-zone');
+plz.addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];pkId=t.identifier;pkLx=t.clientX;pkLy=t.clientY;},{passive:false});
+plz.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===pkId){yaw-=(t.clientX-pkLx)*mobSens;pitch-=(t.clientY-pkLy)*mobSens;pitch=Math.max(-.4,Math.min(.4,pitch));pkLx=t.clientX;pkLy=t.clientY;}
+  }
+},{passive:false});
+plz.addEventListener('touchend',e=>{for(const t of e.changedTouches){if(t.identifier===pkId)pkId=null;}});
+
+// ═══════════════════════════════════
+// MONSTER AI — FULLY FUNCTIONAL
+// ═══════════════════════════════════
+const MON_SPEED_PATROL=1.6;
+const MON_SPEED_CHASE=3.4;
+const MON_HEAR_RANGE=10;  // hear footsteps
+const MON_SEE_RANGE=7;    // trigger chase
+const MON_LOSE_RANGE=16;  // lose player
+const MON_KILL_DIST=0.9;  // instant kill distance
+
+// Simple BFS pathfinding
+function bfsPath(sx,sz,ex,ez){
+  const sc=Math.round(sx/C),sr=Math.round(sz/C);
+  const ec=Math.round(ex/C),er=Math.round(ez/C);
+  if(sc===ec&&sr===er)return null;
+  const rows=MAP.length,cols=MAP[0].length;
+  const visited=new Uint8Array(rows*cols);
+  const queue=[[sc,sr,null]];
+  const parent=new Array(rows*cols).fill(null);
+  visited[sr*cols+sc]=1;
+  const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+  while(queue.length){
+    const [c,r,_]=queue.shift();
+    if(c===ec&&r===er){
+      // Reconstruct path
+      const path=[];let cur=[ec,er];
+      while(parent[cur[1]*cols+cur[0]]){
+        path.unshift(cur);cur=parent[cur[1]*cols+cur[0]];
+      }
+      return path.length>0?[path[0][0]*C, path[0][1]*C]:null;
+    }
+    for(const [dc,dr] of dirs){
+      const nc2=c+dc,nr=r+dr;
+      if(nc2<0||nc2>=cols||nr<0||nr>=rows)continue;
+      if(MAP[nr][nc2]===1)continue;
+      if(visited[nr*cols+nc2])continue;
+      visited[nr*cols+nc2]=1;
+      parent[nr*cols+nc2]=[c,r];
+      queue.push([nc2,nr,null]);
+    }
+  }
+  return null;
+}
+
+let monPathTimer=0;
+let monNextWaypoint=null; // {x,z} next cell center to walk to
+
+function nearestVisiblePlayer(){
+  let best=null,bd=Infinity;
+  if(!isHiding&&!myDead){
+    const d=monPos.distanceTo(pPos);
+    if(d<bd){bd=d;best={pos:pPos.clone(),id:'self',hiding:false};}
+  }
+  for(const[id,p] of Object.entries(mp.peers)){
+    if(p.dead||p.hiding)continue;
+    const pp=new THREE.Vector3(p.x,p.y,p.z);
+    const d=monPos.distanceTo(pp);
+    if(d<bd){bd=d;best={pos:pp,id,hiding:false};}
+  }
+  return{target:best,dist:best?bd:Infinity};
+}
+
+function updateMon(dt){
+  if(!monActive)return;
+  monPathTimer-=dt;
+
+  const{target,dist}=nearestVisiblePlayer();
+
+  // Decide chase or patrol
+  if(dist<MON_SEE_RANGE) monChasing=true;
+  else if(dist>MON_LOSE_RANGE) monChasing=false;
+  // Hearing: loud sprint near monster
+  if(!monChasing&&isSprint&&dist<MON_HEAR_RANGE&&target) monChasing=true;
+
+  if(monChasing&&target){
+    // Path towards player using BFS every 0.6s
+    if(monPathTimer<=0){
+      monPathTimer=0.6;
+      const wp=bfsPath(monPos.x,monPos.z,target.pos.x,target.pos.z);
+      monNextWaypoint=wp?{x:wp[0],z:wp[1]}:null;
+    }
+    const dest=monNextWaypoint||target.pos;
+    const dir=new THREE.Vector3(dest.x-monPos.x,0,dest.z-monPos.z);
+    if(dir.length()>0.1){
+      dir.normalize();
+      const np=monPos.clone();
+      mv(np,dir.x*MON_SPEED_CHASE*dt,dir.z*MON_SPEED_CHASE*dt);
+      monPos.copy(np);
+    }
+    // Sanity drain when close
+    const dm=monPos.distanceTo(pPos);
+    if(!isHiding&&dm<6){
+      sanity-=(1-dm/6)*18*dt;sanity=Math.max(0,sanity);
+    }
+    hbT-=dt;
+    if(hbT<=0){
+      const dm2=monPos.distanceTo(pPos);
+      hbT=Math.max(.25,dm2/18);
+      sHb(Math.max(.04,.3-dm2*.025));
+    }
+  } else {
+    // Patrol: random wander using BFS
+    if(monPathTimer<=0||!monNextWaypoint){
+      monPathTimer=2+Math.random()*3;
+      // Pick random open cell
+      let attempts=0;
+      while(attempts++<20){
+        const rc=Math.floor(Math.random()*MAP[0].length);
+        const rr=Math.floor(Math.random()*MAP.length);
+        if(MAP[rr][rc]===0){
+          monNextWaypoint={x:rc*C,z:rr*C};break;
+        }
+      }
+    }
+    if(monNextWaypoint){
+      const dir=new THREE.Vector3(monNextWaypoint.x-monPos.x,0,monNextWaypoint.z-monPos.z);
+      if(dir.length()>0.3){
+        dir.normalize();
+        const np=monPos.clone();
+        mv(np,dir.x*MON_SPEED_PATROL*dt,dir.z*MON_SPEED_PATROL*dt);
+        monPos.copy(np);
+      } else {
+        monNextWaypoint=null;
+      }
+    }
+  }
+
+  // Update monster mesh
+  monGroup.position.set(monPos.x,Math.sin(Date.now()*.004)*.05,monPos.z);
+  if(monChasing&&target){
+    monGroup.lookAt(target.pos.x,monPos.y,target.pos.z);
+  } else if(monNextWaypoint){
+    const look=new THREE.Vector3(monNextWaypoint.x,monPos.y,monNextWaypoint.z);
+    monGroup.lookAt(look);
+  }
+
+  // Blood effect based on distance
+  const dm=monPos.distanceTo(pPos);
+  if(!isHiding){
+    const pr=Math.max(0,1-dm/7);
+    bloodEl.style.opacity=(pr*.65).toString();
+    bloodEl.style.background=`radial-gradient(ellipse at center,transparent 20%,rgba(${Math.floor(pr*180)},0,0,${pr*.5}) 100%)`;
+  } else bloodEl.style.opacity='0';
+
+  // KILL check — any non-hiding, non-dead player within range
+  if(!isHiding&&!myDead&&!gameOver&&dm<MON_KILL_DIST) die();
+  // Check ghost players too
+  for(const[id,p] of Object.entries(mp.peers)){
+    if(p.dead||p.hiding)continue;
+    const pp=new THREE.Vector3(p.x,p.y,p.z);
+    if(monPos.distanceTo(pp)<MON_KILL_DIST){
+      // Signal that peer was killed (they'll handle their own die on their client)
+      // Just show message locally
+      break;
+    }
+  }
+}
+
+// ═══════════════════════════════════
+// GAME EVENTS
+// ═══════════════════════════════════
+function die(){
+  if(myDead)return;myDead=true;
+  if(isHiding)exitHide();
+  sDie();if(document.exitPointerLock)document.exitPointerLock();
+  bloodEl.style.opacity='1';bloodEl.style.background='rgba(150,0,0,.7)';
+  if(isSoloMode){
+    setTimeout(()=>endGame(false),1500);
+    return;
+  }
+  document.getElementById('specnotice').style.display='block';
+  mp.pos({x:pPos.x,y:pPos.y,z:pPos.z,yaw,sanity:0,dead:true,hiding:false,wIdx:-1});
+  const anyAlive=Object.values(mp.peers).some(p=>!p.dead)||false;
+  if(!anyAlive)setTimeout(()=>endGame(false),1500);
+  else showMsg('YOU DIED — SPECTATING','#f44',5000);
+}
+
+function endGame(win){
+  if(gameOver)return;gameOver=true;gameActive=false;
+  if(win)sWin();else sDie();
+  if(!isSoloMode)mp.event('over',{won:win});
+  if(document.exitPointerLock)document.exitPointerLock();
+  setTimeout(()=>{
+    document.getElementById('rtitle').textContent=win?'ESCAPED!':'CONSUMED';
+    document.getElementById('rtitle').style.color=win?'#0f0':'#c00';
+    document.getElementById('rsub').textContent=win
+      ?(isSoloMode?'you survived the darkness alone...':'you survived the darkness...')
+      :(isSoloMode?'the monster consumed you...':'the monster consumed you all...');
+    document.getElementById('resultscreen').classList.add('show');
+  },800);
+}
+
+// ═══════════════════════════════════
+// MP LISTENERS
+// ═══════════════════════════════════
+mp.on('join',d=>{showMsg((d.name||'???')+' ENTERED THE DARK','#f88',2500);updatePL();updateWaitUI();});
+mp.on('leave',d=>{removeGhost(d.id);showMsg('A SOUL HAS LEFT...','#666',2000);updatePL();updateWaitUI();});
+mp.on('move',d=>{if(gameActive)updateGhost(d.id,d);});
+mp.on('died',d=>{
+  showMsg('A PLAYER HAS FALLEN...','#f44',2500);
+  if(ghosts[d.id])updateGhost(d.id,{...mp.peers[d.id],dead:true});
+  updatePL();
+  // Check if everyone's dead
+  const allDead=!mp.peers||Object.values(mp.peers).every(p=>p.dead);
+  if(allDead&&myDead)endGame(false);
+});
+mp.on('hiding',d=>{
+  if(ghosts[d.id])ghosts[d.id].visible=!d.hiding;
+  if(mp.peers[d.id])mp.peers[d.id].hiding=d.hiding;
+  if(d.wIdx>=0&&d.wIdx<wardrobes.length)wardrobes[d.wIdx].occupiedBy=d.hiding?d.id:null;
+  else if(!d.hiding)wardrobes.forEach(w=>{if(w.occupiedBy===d.id)w.occupiedBy=null;});
+  if(d.hiding)showMsg((mp.peers[d.id]?.name||'???')+' IS HIDING','#555',1800);
+  updatePL();
+});
+mp.on('key',d=>{
+  const k=keyMeshes[d.ki];
+  if(k&&!k.userData.collected){
+    k.userData.collected=true;k.visible=false;k.userData.light.intensity=0;
+    keysGot=d.total;keysEl.textContent=keysGot+' / '+TOTAL_KEYS;sKey();
+    if(keysGot<TOTAL_KEYS)showMsg('KEY FOUND! ('+keysGot+'/'+TOTAL_KEYS+')','#fa0',2000);
+    if(keysGot===TOTAL_KEYS){monActive=true;showMsg('ALL KEYS! FIND EXIT!','#0f0',3000);setTimeout(()=>showMsg('⚠ IT WOKE UP','#f00',3000),1500);}
+  }
+});
+mp.on('sync',s=>{
+  keysGot=s.keys.length;keysEl.textContent=keysGot+' / '+TOTAL_KEYS;
+  s.keys.forEach(i=>{const k=keyMeshes[i];if(k){k.userData.collected=true;k.visible=false;if(k.userData.light)k.userData.light.intensity=0;}});
+  if(keysGot>=TOTAL_KEYS)monActive=true;
+});
+mp.on('over',d=>{if(!gameOver)endGame(d.won);});
+mp.on('readychange',d=>{updateWaitUI();});
+mp.on('start',d=>{if(!gameActive&&document.getElementById('overlay').classList.contains('visible'))startGame();});
+
+// ═══════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════
+let lastT=0,lastSync=0,lastMapDraw=0;
+
+function animate(ts){
+  requestAnimationFrame(animate);
+  const dt=Math.min((ts-lastT)/1000,.05);lastT=ts;
+  if(!gameActive){renderer.render(scene,camera);return;}
+
+  // Pos sync
+  if(ts-lastSync>50){
+    lastSync=ts;
+    mp.pos({x:pPos.x,y:pPos.y,z:pPos.z,yaw,sanity,dead:myDead,hiding:isHiding,wIdx:curWard?wardrobes.indexOf(curWard):-1});
+  }
+
+  // Movement
+  if(!myDead&&!isHiding&&!mapOpen){
+    const fwd=keys_pressed.w||(jDz<-.15),bk=keys_pressed.s||(jDz>.15);
+    const lft=keys_pressed.a||(jDx<-.15),rgt=keys_pressed.d||(jDx>.15);
+    isSprint=!!keys_pressed.shift&&stamina>0;const spd=isSprint?4.5:2.8;
+    if(isSprint&&(fwd||bk||lft||rgt))stamina-=dt*30;else stamina+=dt*15;
+    stamina=Math.max(0,Math.min(100,stamina));
+    stEl.style.width=stamina+'%';
+    const sc=stamina>60?'#4a9':stamina>30?'#aa4':'#a44';stEl.style.background=sc;stEl.style.boxShadow='0 0 8px '+sc;
+    const F=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),R=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+    let dx=0,dz=0;
+    if(fwd){dx+=F.x;dz+=F.z;}if(bk){dx-=F.x;dz-=F.z;}
+    if(rgt){dx+=R.x;dz+=R.z;}if(lft){dx-=R.x;dz-=R.z;}
+    if(jA&&!fwd&&!bk&&!lft&&!rgt){dx+=F.x*-jDz+R.x*jDx;dz+=F.z*-jDz+R.z*jDx;}
+    const len=Math.sqrt(dx*dx+dz*dz);if(len>0){dx/=len;dz/=len;}
+    mv(pPos,dx*spd*dt,dz*spd*dt);
+    if(len>0){bobT+=dt*(isSprint?12:7);pPos.y=.9+Math.sin(bobT)*.04;}
+  }
+
+  camera.position.copy(pPos);
+
+  // Sanity
+  if(sanity<50){
+    const s=(50-sanity)/50;shakeT+=dt*s*5;camera.rotation.z=Math.sin(shakeT)*s*.03;
+    if(Math.random()<s*.005)showMsg(['IT SEES YOU','RUN','NO ESCAPE','HELP ME'][Math.floor(Math.random()*4)],'#f00',1500);
+  }else camera.rotation.z*=.9;
+  if(!monChasing)sanity+=dt*2;
+  sanity=Math.max(0,Math.min(100,sanity));
+  sanEl.textContent=Math.floor(sanity);sanEl.style.color=sanity>60?'#4a9':sanity>30?'#fa0':'#f44';
+  if(sanity<=0&&!myDead&&!gameOver)die();
+
+  camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
+
+  // Wardrobe proximity
+  if(!myDead&&!isHiding){
+    nearWard=null;let cd=Infinity;
+    wardrobes.forEach(w=>{const d=pPos.distanceTo(w.ip);if(d<1.4&&d<cd){cd=d;nearWard=w;}});
+    const hp=document.getElementById('hideprompt'),hbm=document.getElementById('hidebtn-mobile');
+    if(nearWard){
+      const occ=nearWard.occupiedBy&&nearWard.occupiedBy!==mp.id;
+      hp.textContent=occ?'🚪 OCCUPIED':'🚪 HIDE IN WARDROBE [E]';
+      hp.style.color=occ?'#f84':'#bbb';hp.style.display='block';
+      if(isMob()&&!occ)hbm.style.display='block';else hbm.style.display='none';
+    } else {hp.style.display='none';hbm.style.display='none';}
+  }
+
+  // Map item pickup
+  if(mapItemMesh&&!mapItemMesh.userData.collected){
+    mapItemMesh.rotation.y+=dt*2;
+    if(!myDead&&pPos.distanceTo(mapItemMesh.position)<1.0){
+      mapItemMesh.userData.collected=true;mapItemMesh.visible=false;
+      mapItemMesh.userData.light.intensity=0;
+      hasMap=true;sMap();
+      showMsg('MAP ACQUIRED! PRESS M','#88aaff',3000);
+      document.getElementById('mapprompt').style.display='block';
+      if(isMob())document.getElementById('mapbtn-mobile').style.display='block';
+    }
+  }
+
+  // Key pickup
+  keyMeshes.forEach((k,i)=>{
+    if(k.userData.collected)return;k.rotation.y+=dt*2;
+    if(!myDead&&pPos.distanceTo(k.position)<.9){
+      k.userData.collected=true;k.visible=false;k.userData.light.intensity=0;
+      keysGot++;keysEl.textContent=keysGot+' / '+TOTAL_KEYS;sKey();
+      mp.event('key',{ki:i});
+      if(keysGot<TOTAL_KEYS)showMsg('KEY FOUND! ('+keysGot+'/'+TOTAL_KEYS+')','#fa0',2000);
+      if(keysGot===TOTAL_KEYS){monActive=true;showMsg('ALL KEYS! FIND EXIT!','#0f0',3000);setTimeout(()=>showMsg('⚠ IT WOKE UP','#f00',3000),1500);}
+    }
+  });
+
+  // Exit
+  if(keysGot>=TOTAL_KEYS&&exitMesh){
+    exitMesh.rotation.y+=dt*3;
+    if(!myDead&&!isHiding&&pPos.distanceTo(exitMesh.position)<1.2)endGame(true);
+  }
+
+  // Refresh map if open
+  if(mapOpen&&ts-lastMapDraw>500){lastMapDraw=ts;drawMap();}
+
+  updateMon(dt);
+  renderer.render(scene,camera);
+}
+
+// ═══════════════════════════════════
+// INIT SCENE
+// ═══════════════════════════════════
+function initScene(){
+  while(scene.children.length)scene.remove(scene.children[0]);
+  wallMeshes.length=0;keyMeshes.length=0;wardrobes.length=0;
+  Object.keys(ghosts).forEach(id=>delete ghosts[id]);
+  buildMaze();buildLights();buildWardrobes();buildMonster();buildSlats();
+  pPos.set(START.col*C,.9,START.row*C);
+  monPos.set(MS.col*C,.9,MS.row*C);
+  monNextWaypoint=null;monPathTimer=0;
+  yaw=0;pitch=0;bobT=0;shakeT=0;
+  keysGot=0;sanity=100;stamina=100;
+  monActive=false;monChasing=false;
+  gameOver=false;myDead=false;isHiding=false;isPeeking=false;
+  hasMap=false;mapOpen=false;
+  bloodEl.style.opacity='0';
+  keysEl.textContent='0 / '+TOTAL_KEYS;
+  sanEl.textContent='100';
+  ['specnotice','hideprompt','occmsg','hidebtn-mobile','mapprompt','mapbtn-mobile'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.style.display='none';
+  });
+  document.getElementById('hideoverlay').classList.remove('active');
+  document.getElementById('peekoverlay').classList.remove('active');
+  document.getElementById('mapoverlay').classList.remove('active');
+  updatePL();
+}
+
+// ═══════════════════════════════════
+// LOBBY & WAIT ROOM
+// ═══════════════════════════════════
+let isSoloMode=false;
+
+function switchMode(mode){
+  isSoloMode=(mode==='solo');
+  document.getElementById('tab-solo').classList.toggle('active',isSoloMode);
+  document.getElementById('tab-multi').classList.toggle('active',!isSoloMode);
+  document.getElementById('solopanel').style.display=isSoloMode?'flex':'none';
+  document.getElementById('mppanel').style.display=isSoloMode?'none':'flex';
+}
+
+function playSolo(){
+  const name=document.getElementById('pname').value.trim()||'GHOST';
+  mp.name=name;
+  mp.color=0xff4444;
+  mp.isLeader=true;
+  mp.isReady=true;
+  // No Firebase connection — just start directly
+  document.getElementById('lobby').classList.add('hidden');
+  startGame();
+}
+
+function setSt(m,c=''){
+  // Update whichever status is visible
+  const el=document.getElementById('lstatus');
+  const el2=document.getElementById('lstatus2');
+  if(el)el.textContent=m;
+  if(el2)el2.textContent=m;
+  if(el)el.className=c;
+  if(el2)el2.className=c;
+  if(el2)el2.style.color=c==='ok'?'#4a9':c==='err'?'#f44':c==='warn'?'#fa0':'#555';
+}
+
+function createRoom(){
+  const name=document.getElementById('pname').value.trim()||'GHOST';
+  mp.name=name;
+  mp.color=0xff4444;
+  const code=mp.create();
+  document.getElementById('rcode').textContent=code;
+  document.getElementById('rdisplay').style.display='block';
+  document.getElementById('rdisplay').onclick=()=>navigator.clipboard.writeText(code).then(()=>setSt('code copied!','ok'));
+  setSt('room created! share the code','ok');
+  isSoloMode=false;
+  setTimeout(()=>enterWait(code),1200);
+}
+
+function joinRoom(){
+  const name=document.getElementById('pname').value.trim()||'GHOST';
+  const code=document.getElementById('jcode').value.trim().toUpperCase();
+  if(code.length<4){setSt('enter a valid room code','err');return;}
+  mp.name=name;
+  // Random color for joiners
+  mp.color=[0x00aaff,0x44ff44,0xffaa00,0xaa44ff,0xff44aa][Math.floor(Math.random()*5)];
+  mp.join(code);setSt('joining '+code+'...','warn');
+  isSoloMode=false;
+  setTimeout(()=>enterWait(code),800);
+}
+
+function copyCode(){
+  const code=document.getElementById('oroomcode').textContent;
+  navigator.clipboard.writeText(code).then(()=>showWaitMsg('Code copied!'));
+}
+
+function showWaitMsg(m){document.getElementById('waitstatus').textContent=m;}
+
+function enterWait(code){
+  document.getElementById('lobby').classList.add('hidden');
+  const ov=document.getElementById('overlay');ov.classList.add('visible');
+  document.getElementById('oroomcode').textContent=code;
+  // Show appropriate button
+  if(mp.isLeader){
+    document.getElementById('startbtn').style.display='block';
+    document.getElementById('readybtn').style.display='none';
+  } else {
+    document.getElementById('startbtn').style.display='none';
+    document.getElementById('readybtn').style.display='block';
+  }
+  updateWaitUI();
+  // Poll every 2s as backup
+  setInterval(updateWaitUI,2000);
+}
+
+function updateWaitUI(){
+  const listEl=document.getElementById('playerlist');
+  const statusEl=document.getElementById('waitstatus');
+  const startBtn=document.getElementById('startbtn');
+
+  // Build player cards
+  let html='';
+  // Self
+  const selfReady=mp.isLeader||mp.isReady;
+  const selfBadge=mp.isLeader
+    ?`<span class="wplayer-badge badge-leader">LEADER</span>`
+    :selfReady
+      ?`<span class="wplayer-badge badge-ready">READY</span>`
+      :`<span class="wplayer-badge badge-waiting">WAITING</span>`;
+  html+=`<div class="wplayer">
+    <div class="wplayer-info">
+      <div class="wplayer-dot" style="background:#${ mp.color.toString(16).padStart(6,'0') }"></div>
+      <span>${mp.name} (you)</span>
+    </div>
+    ${selfBadge}
+  </div>`;
+
+  let allReady=selfReady;
+  const peerCount=Object.keys(mp.peers).length;
+
+  Object.entries(mp.peers).forEach(([id,p])=>{
+    const isLeader=p.isLeader;
+    const ready=isLeader||p.ready;
+    if(!ready)allReady=false;
+    const badge=isLeader
+      ?`<span class="wplayer-badge badge-leader">LEADER</span>`
+      :ready
+        ?`<span class="wplayer-badge badge-ready">READY</span>`
+        :`<span class="wplayer-badge badge-waiting">WAITING</span>`;
+    html+=`<div class="wplayer">
+      <div class="wplayer-info">
+        <div class="wplayer-dot" style="background:#${((p.color||0x00aaff).toString(16).padStart(6,'0'))}"></div>
+        <span>${p.name||'GHOST'}</span>
+      </div>
+      ${badge}
+    </div>`;
+  });
+  listEl.innerHTML=html;
+
+  // Status message and start button
+  if(mp.isLeader){
+    if(peerCount===0){
+      statusEl.textContent=isSoloMode?'ready to enter the dark!':'waiting for players to join...';
+      startBtn.disabled=isSoloMode?false:true;
+    } else if(allReady){
+      statusEl.textContent='all players ready! you can start!';
+      startBtn.disabled=false;
+    } else {
+      statusEl.textContent='waiting for players to ready up...';
+      startBtn.disabled=true;
+    }
+  } else {
+    if(!mp.isReady){
+      statusEl.textContent='press READY UP when you\'re ready!';
+    } else {
+      statusEl.textContent='waiting for leader to start...';
+    }
+  }
+}
+
+function toggleReady(){
+  mp.isReady=!mp.isReady;
+  mp.setReady(mp.isReady);
+  const btn=document.getElementById('readybtn');
+  if(mp.isReady){
+    btn.textContent='✓ READY!';btn.classList.add('ready');
+  } else {
+    btn.textContent='READY UP';btn.classList.remove('ready');
+  }
+  updateWaitUI();
+}
+
+function leaderStart(){
+  if(!mp.isLeader)return;
+  // Check all peers ready
+  const allReady=Object.values(mp.peers).every(p=>p.isLeader||p.ready);
+  if(!allReady&&Object.keys(mp.peers).length>0){showWaitMsg('not all players are ready!');return;}
+  mp.event('start',{});
+  startGame();
+}
+
+let animLoopStarted=false;
+function startGame(){
+  if(gameActive)return;
+  document.getElementById('overlay').classList.remove('visible');
+  initScene();gameActive=true;ac();
+  if(isMob())document.getElementById('mobile-controls').style.display='block';
+  else renderer.domElement.requestPointerLock();
+  showSettingsBtn(true);
+  setTimeout(()=>showMsg('FIND THE '+TOTAL_KEYS+' KEYS...','#fa0',3000),500);
+  lastT=performance.now();
+  if(!animLoopStarted){animLoopStarted=true;requestAnimationFrame(animate);}
+}
+
+function retryGame(){
+  document.getElementById('resultscreen').classList.remove('show');
+  if(!isSoloMode)mp.shared={keys:[]};
+  initScene();gameActive=true;bloodEl.style.opacity='0';
+  showSettingsBtn(true);
+  if(!isMob())renderer.domElement.requestPointerLock();
+  setTimeout(()=>showMsg('FIND THE '+TOTAL_KEYS+' KEYS...','#fa0',3000),500);
+}
+
+function backToLobby(){
+  document.getElementById('resultscreen').classList.remove('show');
+  document.getElementById('lobby').classList.remove('hidden');
+  document.getElementById('lobby').style.opacity='1';
+  document.getElementById('lobby').style.pointerEvents='all';
+  gameActive=false;
+  showSettingsBtn(false);
+  if(!isSoloMode)mp.disconnect();
+  switchMode(isSoloMode?'solo':'solo');
+}
+
+renderer.render(scene,camera);
+window.addEventListener('beforeunload',()=>mp.disconnect());
+</script>
+</body>
+</html>
